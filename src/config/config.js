@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Centralized Configuration for MuktsarNGO App
  * 
  * This file contains all configuration settings for the application.
