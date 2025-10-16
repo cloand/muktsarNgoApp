@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "MuktsarNGO",
     "slug": "muktsarngo",
@@ -23,6 +23,11 @@
       "expo-notifications",
       "expo-secure-store"
     ],
-    "scheme": "muktsarngo"
+    "scheme": "muktsarngo",
+    "extra": {
+      "eas": {
+        "projectId": "17126606-e6a8-4dcb-8f50-6a2087f9aa2c"
+      }
+    }
   }
 }
