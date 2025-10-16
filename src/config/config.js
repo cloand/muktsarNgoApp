@@ -154,7 +154,7 @@ export const isDonor = (user) => {
 
 export const getFullURL = (endpoint) => {
   const baseURL = getBaseURL();
-  return ${baseURL};
+  return `${baseURL}`;
 };
 
 // Environment detection
