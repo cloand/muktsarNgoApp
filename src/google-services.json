@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "61320218045",
+    "project_id": "muktsar-ngo-app",
+    "storage_bucket": "muktsar-ngo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:61320218045:android:1082ac98165dacc2bcfed4",
+        "android_client_info": {
+          "package_name": "com.muktsarngo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWQePLi4ItdCRIgH1XOBqkhRIKcnIQsP0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

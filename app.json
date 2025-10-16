@@ -1,0 +1,28 @@
+﻿{
+  "expo": {
+    "name": "MuktsarNGO",
+    "slug": "muktsarngo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.muktsarngo.app"
+    },
+    "android": {
+      "package": "com.muktsarngo.app",
+      "versionCode": 1
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "scheme": "muktsarngo"
+  }
+}

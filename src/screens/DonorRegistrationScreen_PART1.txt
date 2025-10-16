@@ -1,0 +1,147 @@
+import React, { useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+} from 'react-native';
+import {
+  Text,
+  TextInput,
+  Button,
+  Card,
+  Title,
+  HelperText,
+  useTheme,
+  Avatar,
+  SegmentedButtons,
+} from 'react-native-paper';
+import { useAuth } from '../context/AuthContext';
+import { commonStyles } from '../theme/theme';
+import { APP_CONFIG } from '../config/config';
+import { BLOOD_GROUPS, GENDERS } from '../utils/constants';
+
+const DonorRegistrationScreen = ({ navigation }) => {
+  // Form state
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    bloodGroup: 'O_POSITIVE',
+    gender: 'MALE',
+    dateOfBirth: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    emergencyContact: '',
+  });
+
+  // Error state
+  const [errors, setErrors] = useState({});
+
+  // Get auth context and theme
+  const { registerDonor, loading, error, clearError } = useAuth();
+  const theme = useTheme();
+
+  // Update form data
+  const updateFormData = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    if (error) {
+      clearError();
+    }
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    // Name validation
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
+    // Phone validation
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^\+?[\d\s\-\(\)]{10,15}$/.test(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number';
+    }
+
+    // Date of birth validation
+    if (!formData.dateOfBirth) {
+      newErrors.dateOfBirth = 'Date of birth is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle registration
+  const handleRegister = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      // Prepare registration data - exclude confirmPassword
+      const { confirmPassword, ...registrationData } = formData;
+      const finalData = {
+        ...registrationData,
+        name: `${formData.firstName} ${formData.lastName}`.trim()
+      };
+
+      const response = await registerDonor(finalData);
+      
+      if (response.user) {
+        Alert.alert(
+          'Registration Successful',
+          `Welcome to MuktsarNGO, ${response.user.firstName}! You can now receive emergency blood donation alerts.`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => navigation.replace('Home'),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Registration Failed',
+        error.message || 'Failed to register. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };

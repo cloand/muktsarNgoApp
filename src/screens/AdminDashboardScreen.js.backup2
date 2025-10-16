@@ -1,0 +1,969 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  StyleSheet,
+  SafeAreaView,
+  Alert,
+  ScrollView,
+  FlatList,
+  RefreshControl,
+} from 'react-native';
+import {
+  Text,
+  Title,
+  Button,
+  Avatar,
+  Divider,
+  useTheme,
+  Card,
+  Paragraph,
+  SegmentedButtons,
+  IconButton,
+  Menu,
+  Searchbar,
+  ActivityIndicator,
+  TextInput,
+  Chip,
+} from 'react-native-paper';
+// import { logout } from '../auth/auth.service';
+import { isAdmin } from '../config/config';
+import { useAuth } from '../context/AuthContext';
+import ApiService from '../services/ApiService';
+import { BLOOD_GROUPS, GENDERS, transformDonorFromBackend } from '../utils/constants';
+import { AdminOnlyAccess } from '../components/AdminOnlyAccess';
+import { commonStyles } from '../theme/theme';
+import AlertsTabContent from '../components/AlertsTabContent';
+
+
+const AdminDashboardScreen = ({ navigation }) => {
+  const theme = useTheme();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [bloodGroupFilter, setBloodGroupFilter] = useState('All');
+  const [genderFilter, setGenderFilter] = useState('All');
+  const [eligibilityFilter, setEligibilityFilter] = useState('All');
+  const {user, logout} = useAuth();
+
+  // Alerts state
+  // const [alertForm, setAlertForm] = useState({
+
+
+  if (!isAdmin(user)) {
+    return (
+      <AdminOnlyAccess>
+        {/* This will show access denied message */}
+      </AdminOnlyAccess>
+    );
+  }
+
+  const [activeTab, setActiveTab] = useState('donors');
+
+  // Tab state
+
+  const [donors, setDonors] = useState([]);
+  const [filteredDonors, setFilteredDonors] = useState([]);
+  const [donorsLoading, setDonorsLoading] = useState(false);
+  // const [searchQuery, setSearchQuery] = useState('');
+  // const [bloodGroupFilter, setBloodGroupFilter] = useState('All');
+  // const [genderFilter, setGenderFilter] = useState('All');
+  // const [eligibilityFilter, setEligibilityFilter] = useState('All');
+
+  // Donors state
+
+  // Menu states
+  const [bloodGroupMenuVisible, setBloodGroupMenuVisible] = useState(false);
+  const [genderMenuVisible, setGenderMenuVisible] = useState(false);
+  const [eligibilityMenuVisible, setEligibilityMenuVisible] = useState(false);
+  useEffect(() => {
+    if (activeTab === 'donors') {
+      loadDonors();
+    }
+  }, [activeTab]);
+
+  // Filter donors when search or filters change
+  useEffect(() => {
+    filterDonors();
+  }, [donors, searchQuery, bloodGroupFilter, genderFilter, eligibilityFilter]);
+
+  // Load donors from API
+  const loadDonors = async () => {
+    try {
+      setDonorsLoading(true);
+      const response = await ApiService.getDonors();
+      if (response.status == 200 && response.data && response.data.data) {
+        const transformedDonors = response.data.data.map(transformDonorFromBackend);
+        setDonors(transformedDonors);
+      }
+    } catch (error) {
+      console.error('Error loading donors:', error);
+      Alert.alert('Error', 'Failed to load donors. Please try again.');
+    } finally {
+      setDonorsLoading(false);
+    }
+  };
+
+  // Filter donors based on search and filters
+  const filterDonors = () => {
+    let filtered = [...donors];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(donor =>
+        donor.name.toLowerCase().includes(query) ||
+        donor.email.toLowerCase().includes(query) ||
+        donor.phone.includes(query) ||
+        donor.city.toLowerCase().includes(query)
+      );
+    }
+
+    // Blood group filter
+    if (bloodGroupFilter !== 'All') {
+      filtered = filtered.filter(donor => donor.bloodGroup === bloodGroupFilter);
+    }
+
+    // Gender filter
+    if (genderFilter !== 'All') {
+      filtered = filtered.filter(donor => donor.gender === genderFilter);
+    }
+
+    // Eligibility filter
+    if (eligibilityFilter !== 'All') {
+      const isEligible = eligibilityFilter === 'Eligible';
+      filtered = filtered.filter(donor => donor.isEligible === isEligible);
+    }
+
+    setFilteredDonors(filtered);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          },
+        },
+      ]
+    );
+  };
+
+
+  // Render donor item
+  const renderDonorItem = ({ item }) => (
+    <Card style={styles.donorCard} key={item.id}>
+      <Card.Content>
+        <View style={styles.donorHeader}>
+          <View style={styles.donorInfo}>
+            <Text style={styles.donorName}>{item.name}</Text>
+            <Text style={styles.donorEmail}>{item.email}</Text>
+            <Text style={styles.donorPhone}>{item.phone}</Text>
+          </View>
+          <View style={styles.donorBadges}>
+            <Chip
+              mode="outlined"
+              style={[styles.bloodGroupChip, { borderColor: theme.colors.primary }]}
+              textStyle={{ color: theme.colors.primary }}
+            >
+              {item.bloodGroup}
+            </Chip>
+            <Chip
+              mode="outlined"
+              style={[
+                styles.eligibilityChip,
+                {
+                  borderColor: item.isEligible ? '#4CAF50' : '#FF5722',
+                  backgroundColor: item.isEligible ? '#E8F5E8' : '#FFEBEE'
+                }
+              ]}
+              textStyle={{ color: item.isEligible ? '#4CAF50' : '#FF5722' }}
+            >
+              {item.isEligible ? 'Eligible' : 'Not Eligible'}
+            </Chip>
+          </View>
+        </View>
+        <View style={styles.donorDetails}>
+          <Text style={styles.donorDetailText}>
+            {item.city}, {item.state}
+          </Text>
+          <Text style={styles.donorDetailText}>
+            Total Donations: {item.totalDonations || 0}
+          </Text>
+          {item.lastDonationDate && (
+            <Text style={styles.donorDetailText}>
+              Last Donation: {new Date(item.lastDonationDate).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
+      </Card.Content>
+    </Card>
+  );
+
+  // Alerts state
+  // const [alertForm, setAlertForm] = useState({
+
+
+  if (!isAdmin(user)) {
+    return (
+      <AdminOnlyAccess>
+        {/* This will show access denied message */}
+      </AdminOnlyAccess>
+    );
+  }
+
+  // Donors state
+
+  const [alertForm, setAlertForm] = useState({
+    message: '',
+    hospitalName: '',
+    hospitalAddress: '',
+    contactPerson: '',
+    contactPhone: '',
+    bloodGroup: 'O_POSITIVE',
+    unitsRequired: '1',
+    urgency: 'HIGH',
+  });
+  const [alertErrors, setAlertErrors] = useState({});
+  const [sendingAlert, setSendingAlert] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'donors') {
+      loadDonors();
+    } else if (activeTab === 'reports') {
+      loadReportsSummary();
+    }
+  }, [activeTab]);
+
+  // Filter donors when search or filters change
+  useEffect(() => {
+    filterDonors();
+  }, [donors, searchQuery, bloodGroupFilter, genderFilter, eligibilityFilter]);
+
+ 
+  // Handle alert form changes
+  const updateAlertForm = (field, value) => {
+    setAlertForm(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (alertErrors[field]) {
+      setAlertErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Validate alert form
+  const validateAlertForm = () => {
+    const errors = {};
+
+    if (!alertForm.title.trim()) {
+      errors.title = 'Title is required';
+    }
+    if (!alertForm.message.trim()) {
+      errors.message = 'Message is required';
+    }
+    if (!alertForm.hospitalName.trim()) {
+      errors.hospitalName = 'Hospital name is required';
+    }
+    if (!alertForm.contactPerson.trim()) {
+      errors.contactPerson = 'Contact person is required';
+    }
+    if (!alertForm.contactPhone.trim()) {
+      errors.contactPhone = 'Contact phone is required';
+    }
+
+    setAlertErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Send emergency alert - ADMIN ONLY
+  const handleSendAlert = async () => {
+    // Double-check admin authorization
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'admin')) {
+      Alert.alert(
+        'Access Denied',
+        'Only administrators can send emergency alerts.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (!validateAlertForm()) {
+      return;
+    }
+
+    try {
+      setSendingAlert(true);
+      const response = await ApiService.createAlert(alertForm);
+
+      if (response.success) {
+        Alert.alert(
+          'Alert Sent Successfully',
+          `Emergency alert has been sent to all donors via FCM push notifications!\n\n Alert: ${alertForm.title}\n Hospital: ${alertForm.hospitalName}\n Blood Group: ${alertForm.bloodGroup}\n Urgency: ${alertForm.urgency}`,
+          [{
+            text: 'OK',
+            onPress: () => {
+              // Clear form after successful send
+              setAlertForm({
+                title: '',
+                message: '',
+                hospitalName: '',
+                hospitalAddress: '',
+                contactPerson: '',
+                contactPhone: '',
+                bloodGroup: 'O_POSITIVE',
+                unitsRequired: '1',
+                urgency: 'HIGH',
+              });
+              setAlertErrors({});
+            }
+          }]
+        );
+      } else {
+        throw new Error(response.message || 'Failed to send alert');
+      }
+    } catch (error) {
+      console.error('Error sending alert:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to send emergency alert. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setSendingAlert(false);
+    }
+  };
+
+  // Clear filters
+  const clearFilters = () => {
+    setSearchQuery('');
+    setBloodGroupFilter('All');
+    setGenderFilter('All');
+    setEligibilityFilter('All');
+  };
+
+
+  return (
+    <SafeAreaView style={[commonStyles.safeArea, { backgroundColor: theme.colors.background }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Avatar.Icon
+          size={60}
+          icon="shield-account"
+          style={[styles.logo, { backgroundColor: theme.colors.primary }]}
+        />
+        <View style={styles.headerText}>
+          <Title style={[styles.appName, { color: theme.colors.primary }]}>Admin Panel</Title>
+          <Text style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>
+            {user?.firstName || user?.name} Administrator
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton
+            icon="shield-check"
+            size={24}
+            onPress={() => navigation.navigate('SecurityTest')}
+            iconColor={theme.colors.primary}
+          />
+          <IconButton
+            icon="logout"
+            size={24}
+            onPress={handleLogout}
+            iconColor={theme.colors.error}
+          />
+        </View>
+      </View>
+
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <SegmentedButtons
+          value={activeTab}
+          onValueChange={setActiveTab}
+          buttons={[
+            {
+              value: 'donors',
+              label: 'Donors',
+              icon: 'account-group',
+            },
+            {
+              value: 'alerts',
+              label: 'Alerts',
+              icon: 'bell-alert',
+            },
+            {
+              value: 'createAlerts',
+              label: 'Create Alert',
+              icon: 'chart-line', 
+            }
+          ]}
+          style={styles.segmentedButtons}
+        />
+      </View>
+
+      {/* Tab Content */}
+      <View style={styles.content}>
+        {activeTab === 'donors' && (
+          <View style={styles.tabContent}>
+            {/* Donors Header */}
+            <View style={styles ? styles.sectionHeader : {}}>
+              <Title style={styles.sectionTitle}>Donor Management</Title>
+              <Text style={styles.sectionSubtitle}>
+                {filteredDonors.length} of {donors.length} donors
+              </Text>
+            </View>
+
+            {/* Search and Filters */}
+            <Card style={styles.filtersCard}>
+              <Card.Content>
+                <Searchbar
+                  placeholder="Search donors..."
+                  onChangeText={setSearchQuery}
+                  value={searchQuery}
+                  style={styles.searchBar}
+                />
+
+                <View style={styles.filtersRow}>
+                  <Menu
+                    visible={bloodGroupMenuVisible}
+                    onDismiss={() => setBloodGroupMenuVisible(false)}
+                    anchor={
+                      <Button
+                        mode="outlined"
+                        onPress={() => setBloodGroupMenuVisible(true)}
+                        style={styles.filterButton}
+                        icon="water"
+                      >
+                        {bloodGroupFilter}
+                      </Button>
+                    }
+                  >
+                    {['All', ...BLOOD_GROUPS.map(bg => bg.label)].map(group => (
+                      <Menu.Item
+                        key={group}
+                        onPress={() => {
+                          setBloodGroupFilter(group);
+                          setBloodGroupMenuVisible(false);
+                        }}
+                        title={group}
+                      />
+                    ))}
+                  </Menu>
+
+                  <Menu
+                    visible={genderMenuVisible}
+                    onDismiss={() => setGenderMenuVisible(false)}
+                    anchor={
+                      <Button
+                        mode="outlined"
+                        onPress={() => setGenderMenuVisible(true)}
+                        style={styles.filterButton}
+                        icon="human-male-female"
+                      >
+                        {genderFilter}
+                      </Button>
+                    }
+                  >
+                    {['All', ...GENDERS.map(g => g.label)].map(gender => (
+                      <Menu.Item
+                        key={gender}
+                        onPress={() => {
+                          setGenderFilter(gender);
+                          setGenderMenuVisible(false);
+                        }}
+                        title={gender}
+                      />
+                    ))}
+                  </Menu>
+
+                  <Menu
+                    visible={eligibilityMenuVisible}
+                    onDismiss={() => setEligibilityMenuVisible(false)}
+                    anchor={
+                      <Button
+                        mode="outlined"
+                        onPress={() => setEligibilityMenuVisible(true)}
+                        style={styles.filterButton}
+                        icon="check-circle"
+                      >
+                        {eligibilityFilter}
+                      </Button>
+                    }
+                  >
+                    {['All', 'Eligible', 'Not Eligible'].map(status => (
+                      <Menu.Item
+                        key={status}
+                        onPress={() => {
+                          setEligibilityFilter(status);
+                          setEligibilityMenuVisible(false);
+                        }}
+                        title={status}
+                      />
+                    ))}
+                  </Menu>
+
+                  <Button
+                    mode="text"
+                    onPress={clearFilters}
+                    style={styles.clearButton}
+                    textColor={theme.colors.primary}
+                  >
+                    Clear
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+
+            {/* Donors List */}
+            {donorsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Loading donors...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredDonors}
+                renderItem={renderDonorItem}
+                keyExtractor={(item) => item.id.toString()}
+                style={styles.donorsList}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl refreshing={donorsLoading} onRefresh={loadDonors} />
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No donors found</Text>
+                  </View>
+                }
+              />
+            )}
+          </View>
+        )}
+
+        {activeTab === 'alerts' && (
+          <AlertsTabContent
+            user={user}
+            navigation={navigation}
+            theme={theme}
+          />
+        )}
+
+        { activeTab === 'createAlerts' && (
+          <>
+          <View style={styles ? styles.sectionHeader : {}}>
+              <Title style={styles.sectionTitle}>Emergency Alerts</Title>
+              <Text style={styles.sectionSubtitle}>Send urgent blood donation alerts</Text>
+            </View>
+
+            {/* Alert Form */}
+          <ScrollView>
+            <Card style={styles.alertCard}>
+              <Card.Content>
+                <Title style={styles.cardTitle}>Create New Alert</Title>
+
+                <TextInput
+                  label="Alert Title *"
+                  value={alertForm.title}
+                  onChangeText={(value) => updateAlertForm('title', value)}
+                  mode="outlined"
+                  style={styles.input}
+                  error={!!alertErrors.title}
+                  disabled={sendingAlert}
+                />
+                {alertErrors.title && <HelperText type="error">{alertErrors.title}</HelperText>}
+
+                <TextInput
+                  label="Message *"
+                  value={alertForm.message}
+                  onChangeText={(value) => updateAlertForm('message', value)}
+                  mode="outlined"
+                  multiline
+                  numberOfLines={3}
+                  style={styles.input}
+                  error={!!alertErrors.message}
+                  disabled={sendingAlert}
+                />
+                {alertErrors.message && <HelperText type="error">{alertErrors.message}</HelperText>}
+
+                <View style={styles.row}>
+                  <View style={styles.halfWidth}>
+                    <TextInput
+                      label="Hospital Name *"
+                      value={alertForm.hospitalName}
+                      onChangeText={(value) => updateAlertForm('hospitalName', value)}
+                      mode="outlined"
+                      style={styles.input}
+                      error={!!alertErrors.hospitalName}
+                      disabled={sendingAlert}
+                    />
+                    {alertErrors.hospitalName && <HelperText type="error">{alertErrors.hospitalName}</HelperText>}
+                  </View>
+                  <View style={styles.halfWidth}>
+                    <TextInput
+                      label="Contact Person *"
+                      value={alertForm.contactPerson}
+                      onChangeText={(value) => updateAlertForm('contactPerson', value)}
+                      mode="outlined"
+                      style={styles.input}
+                      error={!!alertErrors.contactPerson}
+                      disabled={sendingAlert}
+                    />
+                    {alertErrors.contactPerson && <HelperText type="error">{alertErrors.contactPerson}</HelperText>}
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <View style={styles.halfWidth}>
+                    <TextInput
+                      label="Contact Phone *"
+                      value={alertForm.contactPhone}
+                      onChangeText={(value) => updateAlertForm('contactPhone', value)}
+                      mode="outlined"
+                      keyboardType="phone-pad"
+                      style={styles.input}
+                      error={!!alertErrors.contactPhone}
+                      disabled={sendingAlert}
+                    />
+                    {alertErrors.contactPhone && <HelperText type="error">{alertErrors.contactPhone}</HelperText>}
+                  </View>
+                  <View style={styles.halfWidth}>
+                    <TextInput
+                      label="Units Required"
+                      value={alertForm.unitsRequired}
+                      onChangeText={(value) => updateAlertForm('unitsRequired', value)}
+                      mode="outlined"
+                      keyboardType="numeric"
+                      style={styles.input}
+                      disabled={sendingAlert}
+                    />
+                  </View>
+                </View>
+
+                <TextInput
+                  label="Hospital Address"
+                  value={alertForm.hospitalAddress}
+                  onChangeText={(value) => updateAlertForm('hospitalAddress', value)}
+                  mode="outlined"
+                  multiline
+                  numberOfLines={2}
+                  style={styles.input}
+                  disabled={sendingAlert}
+                />
+
+                <Text style={styles.sectionLabel}>Blood Group Required</Text>
+                <SegmentedButtons
+                  value={alertForm.bloodGroup}
+                  onValueChange={(value) => updateAlertForm('bloodGroup', value)}
+                  buttons={BLOOD_GROUPS.slice(0, 4).map(bg => ({
+                    value: bg.value,
+                    label: bg.label,
+                  }))}
+                  style={styles.segmentedButtons}
+                />
+
+                <Text style={styles.sectionLabel}>Urgency Level</Text>
+                <SegmentedButtons
+                  value={alertForm.urgency}
+                  onValueChange={(value) => updateAlertForm('urgency', value)}
+                  buttons={[
+                    { value: 'HIGH', label: 'High' },
+                    { value: 'MEDIUM', label: 'Medium' },
+                    { value: 'LOW', label: 'Low' },
+                  ]}
+                  style={styles.segmentedButtons}
+                />
+
+                <Button
+                  mode="contained"
+                  onPress={handleSendAlert}
+                  style={[styles.sendAlertButton, { backgroundColor: theme.colors.error }]}
+                  contentStyle={styles.buttonContent}
+                  disabled={sendingAlert}
+                  loading={sendingAlert}
+                  icon="alert"
+                >
+                  {sendingAlert ? 'Sending Alert...' : 'Send Emergency Alert'}
+                </Button>
+              </Card.Content>
+            </Card>
+          </ScrollView>
+          </>
+        )}
+      </View>
+    </SafeAreaView>
+  )}
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    elevation: 2,
+  },
+  logo: {
+    marginRight: 12,
+  },
+  headerText: {
+    flex: 1,
+  },
+  appName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  tagline: {
+    fontSize: 14,
+  },
+  tabContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  segmentedButtons: {
+    marginBottom: 8,
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  tabContent: {
+    flex: 1,
+    padding: 16,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  refreshButton: {
+    marginLeft: 16,
+    alignSelf: 'flex-start',
+  },
+  filtersCard: {
+    marginBottom: 16,
+    elevation: 2,
+  },
+  searchBar: {
+    marginBottom: 16,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterButton: {
+    minWidth: 80,
+  },
+  clearButton: {
+    marginLeft: 'auto',
+  },
+  donorsList: {
+    flex: 1,
+  },
+  donorCard: {
+    marginBottom: 12,
+    elevation: 2,
+  },
+  donorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  donorInfo: {
+    flex: 1,
+  },
+  donorName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  donorEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  donorPhone: {
+    fontSize: 14,
+    color: '#666',
+  },
+  donorBadges: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  bloodGroupChip: {
+    marginBottom: 4,
+  },
+  eligibilityChip: {
+    // Styles applied dynamically
+  },
+  donorDetails: {
+    gap: 4,
+  },
+  donorDetailText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  alertCard: {
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  input: {
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  halfWidth: {
+    flex: 1,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  sendAlertButton: {
+    marginTop: 24,
+  },
+  buttonContent: {
+    paddingVertical: 8,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    minWidth: '45%',
+    elevation: 2,
+  },
+  summaryCardContent: {
+    alignItems: 'center',
+  },
+  summaryNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#C62828',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  summarySubLabel: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  distributionCard: {
+    marginBottom: 16,
+    elevation: 2,
+  },
+  distributionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  distributionItem: {
+    alignItems: 'center',
+    minWidth: '22%',
+  },
+  distributionCount: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  actionsCard: {
+    elevation: 2,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  metadataCard: {
+    marginBottom: 16,
+    elevation: 1,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  metadataLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  metadataValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '400',
+  },
+});
+
+export default AdminDashboardScreen;
