@@ -25,7 +25,7 @@ export const API_CONFIG = {
 };
 
 // Current environment - change this to switch environments
-export const CURRENT_ENV = 'PRODUCTION';
+export const CURRENT_ENV = 'LOCAL_NETWORK';
 
 // Get the base URL based on current environment
 export const getBaseURL = () => {

@@ -27,7 +27,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [showDemoCredentials, setShowDemoCredentials] = useState(true);
+  const [showDemoCredentials, setShowDemoCredentials] = useState(false);
   const [userType, setUserType] = useState('donor'); // 'donor' or 'admin'
 
   // Get auth context and theme
@@ -296,7 +296,7 @@ const LoginScreen = ({ navigation }) => {
               )}
 
               {/* Show demo credentials toggle */}
-              {!showDemoCredentials && (
+              {/* {!showDemoCredentials && (
                 <Button
                   mode="text"
                   onPress={() => setShowDemoCredentials(true)}
@@ -305,7 +305,7 @@ const LoginScreen = ({ navigation }) => {
                 >
                   Show Demo Credentials
                 </Button>
-              )}
+              )} */}
             </View>
           </Card.Content>
         </Card>
